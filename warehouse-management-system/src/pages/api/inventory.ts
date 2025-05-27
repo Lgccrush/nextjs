@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjusted path
 import { getConnection } from '@/lib/db'; // Using the alias defined in tsconfig.json
 
 // Define an interface for the inventory item for type safety
@@ -21,6 +23,12 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse<InventoryItem[]>>
 ) {
+  const session = await getServerSession(req, res, authOptions);
+
+  if (!session) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
   let pool;
   try {
     pool = await getConnection();

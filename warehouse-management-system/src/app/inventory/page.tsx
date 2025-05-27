@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface InventoryItem {
   id: number;
@@ -20,6 +22,8 @@ interface ApiResponse {
 }
 
 export default function InventoryPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,33 +31,51 @@ export default function InventoryPage() {
   const [sortConfig, setSortConfig] = useState<{ key: keyof InventoryItem; direction: 'ascending' | 'descending' } | null>(null);
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
 
-  // Effect for fetching initial data
   useEffect(() => {
-    async function fetchInventory() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch('/api/inventory');
-        const data: ApiResponse = await res.json();
-        if (data.success && data.data) {
-          setInventory(data.data);
-          // Initialize filteredInventory with all items
-          setFilteredInventory(data.data); 
-        } else {
-          setError(data.message || 'Failed to load inventory.');
-        }
-      } catch (err) {
-        setError('An error occurred while fetching inventory.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+    if (status === 'loading') {
+      // Session loading, do nothing here, will be handled by main return
+      return;
     }
-    fetchInventory();
-  }, []);
+    if (status === 'unauthenticated') {
+      router.replace('/');
+      return;
+    }
+    // Fetch inventory only if authenticated
+    if (status === 'authenticated') {
+      async function fetchInventory() {
+        setLoading(true);
+        setError(null);
+        try {
+          const res = await fetch('/api/inventory');
+          const data: ApiResponse = await res.json();
+          if (data.success && data.data) {
+            setInventory(data.data);
+            setFilteredInventory(data.data);
+          } else {
+            setError(data.message || 'Failed to load inventory.');
+            if (res.status === 401 && data.message === 'Unauthorized') {
+              // Specific handling for unauthorized if needed, though router should have redirected
+              setError('Unauthorized to fetch inventory. Please log in.');
+            }
+          }
+        } catch (err) {
+          setError('An error occurred while fetching inventory.');
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      }
+      fetchInventory();
+    }
+  }, [status, router]);
 
-  // Effect for filtering and sorting
+  // Effect for filtering and sorting (runs after inventory is fetched and set)
   useEffect(() => {
+    // Ensure this effect only processes if inventory is populated
+    if (!inventory.length && !searchTerm && !sortConfig) {
+        setFilteredInventory([]); // Ensure filtered is empty if main inventory is empty
+        return;
+    }
     let processedInventory = [...inventory];
 
     // Apply filtering
@@ -108,7 +130,18 @@ export default function InventoryPage() {
     return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
   };
 
-  return (
+  if (status === 'loading') {
+    return <p className="text-center text-gray-600 mt-10">Loading session...</p>;
+  }
+
+  // Router replace should handle unauthenticated, but as a fallback / during redirect:
+  if (status === 'unauthenticated') {
+     // Or a more user-friendly "Redirecting..." message
+    return <p className="text-center text-gray-600 mt-10">Redirecting to login...</p>;
+  }
+
+  // Render content only if authenticated
+  return status === 'authenticated' && (
     <div className="container mx-auto p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Inventory</h1>
@@ -136,7 +169,15 @@ export default function InventoryPage() {
         <p className="text-center text-gray-600">No inventory items found matching your criteria.</p>
       )}
 
-      {!loading && !error && filteredInventory.length > 0 && (
+      {/* Display main loading/error states related to inventory fetching */}
+      {loading && <p className="text-center text-gray-600">Loading inventory...</p>}
+      {error && <p className="text-center text-red-500 bg-red-100 p-4 rounded-md">{error}</p>}
+      
+      {!loading && !error && filteredInventory.length === 0 && session && ( // Ensure session exists before showing "no items"
+        <p className="text-center text-gray-600">No inventory items found matching your criteria.</p>
+      )}
+
+      {!loading && !error && filteredInventory.length > 0 && session && ( // Ensure session exists
         <div className="overflow-x-auto bg-white shadow-md rounded-lg">
           <table className="min-w-full table-auto">
             <thead className="bg-gray-300 text-gray-700 font-bold">

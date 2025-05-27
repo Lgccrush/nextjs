@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@auth/core": "^0.34.2",
+    "@auth/kysely-adapter": "^1.9.1",
+    "@types/bcrypt": "^5.0.2",
+    "bcrypt": "^6.0.0",
+    "kysely": "^0.28.2",
+    "next-auth": "^4.24.11",
+    "nodemailer": "^6.10.1"
+  }
+}

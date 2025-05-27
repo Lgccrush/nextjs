@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@auth/kysely-adapter": "^1.9.1",
     "mysql2": "^3.14.1",
     "next": "15.3.2",
     "next-auth": "^4.24.11",

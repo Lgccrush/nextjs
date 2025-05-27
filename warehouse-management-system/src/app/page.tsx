@@ -1,28 +1,79 @@
-import Link from 'next/link';
+"use client";
 
-export default function HomePage() {
+import { useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation'; // Corrected import for App Router
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null); // Clear previous errors
+
+    try {
+      const response = await signIn('credentials', {
+        redirect: false, // Important to handle errors on the client
+        email,
+        password,
+        callbackUrl: '/inventory', // Changed from '/'
+      });
+
+      if (response?.ok && !response?.error) {
+        router.push(response.url || '/inventory'); // Redirect to callbackUrl or /inventory
+      } else {
+        // Handle errors
+        if (response?.error === "CredentialsSignin") {
+          setError("Invalid email or password.");
+        } else {
+          setError(response?.error || "An unknown error occurred during login.");
+        }
+      }
+    } catch (err) {
+      console.error("Login submission error", err);
+      setError("An unexpected error occurred during login.");
+    }
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gray-100">
-      <div className="bg-white p-10 rounded-lg shadow-xl text-center">
-        <h1 className="text-4xl font-bold text-gray-800 mb-8">Warehouse Management System</h1>
-        <nav className="space-y-4">
-          <div>
-            <Link href="/products" legacyBehavior>
-              <a className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150 ease-in-out w-full md:w-auto block text-center">
-                View Products
-              </a>
-            </Link>
-          </div>
-          <div>
-            <Link href="/inventory" legacyBehavior>
-              <a className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition duration-150 ease-in-out w-full md:w-auto block text-center">
-                View Inventory
-              </a>
-            </Link>
-          </div>
-          {/* Add more links here as new pages are created */}
-        </nav>
-      </div>
-    </main>
+    <div>
+      <h1>Login</h1>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="john.doe@example.com"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="********"
+            required
+          />
+        </div>
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+        <button type="submit">Login</button>
+      </form>
+      <p>
+        Forgot password? <a href="/auth/forgot-password">Reset here</a>
+      </p>
+      {/* Optional: Link to a registration page if you plan to add one */}
+      {/* <p>
+        Don't have an account? <a href="/auth/register">Sign up</a>
+      </p> */}
+    </div>
   );
 }

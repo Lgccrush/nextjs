@@ -77,3 +77,60 @@ CREATE INDEX idx_order_customer_id ON orders(customer_id);
 CREATE INDEX idx_order_date ON orders(order_date);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_order_items_product_id ON order_items(product_id);
+
+-- Auth.js Required Tables (adapted for MySQL with INT IDs)
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE, -- email should be nullable if you want to allow users to sign up with OAuth without providing an email
+    emailVerified TIMESTAMP NULL,
+    password VARCHAR(255), -- For credentials provider
+    image VARCHAR(255),
+    online_status BOOLEAN DEFAULT FALSE, -- Custom field for online status
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE accounts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId INT NOT NULL,
+    type VARCHAR(255) NOT NULL,
+    provider VARCHAR(255) NOT NULL,
+    providerAccountId VARCHAR(255) NOT NULL,
+    refresh_token TEXT,
+    access_token TEXT,
+    expires_at BIGINT,
+    token_type VARCHAR(255),
+    scope TEXT,
+    id_token TEXT,
+    session_state TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_provider_account (provider, providerAccountId)
+);
+
+CREATE TABLE sessions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId INT NOT NULL,
+    sessionToken VARCHAR(255) UNIQUE NOT NULL,
+    expires TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE verification_tokens (
+    identifier VARCHAR(255) NOT NULL,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires TIMESTAMP NOT NULL,
+    PRIMARY KEY (identifier, token),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for Auth.js tables (optional but recommended)
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_accounts_userId ON accounts(userId);
+CREATE INDEX idx_sessions_userId ON sessions(userId);
+CREATE INDEX idx_sessions_sessionToken ON sessions(sessionToken);
